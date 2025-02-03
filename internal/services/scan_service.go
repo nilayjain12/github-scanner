@@ -12,10 +12,10 @@ import (
 func ScanFiles(repo string, files []string) ([]models.ScanResults, error) {
 	var (
 		results []models.ScanResults
-		mu      sync.Mutex                     // Protects access to results
-		wg      sync.WaitGroup                 // WaitGroup for concurrent processing
-		sem     = make(chan struct{}, 3)       // Limit to 3 concurrent file processing
-		errChan = make(chan error, len(files)) // Buffer errors per file
+		mu      sync.Mutex                     // A lock to prevent multiple parts of the program from modifying results at the same time.
+		wg      sync.WaitGroup                 // WaitGroup - A counter to track how many files are still being processed.
+		sem     = make(chan struct{}, 3)       // (Semaphore): A limit to ensure that only 3 files are processed at the same time.
+		errChan = make(chan error, len(files)) // A place to collect any errors that occur.
 	)
 
 	for _, file := range files {
@@ -24,11 +24,12 @@ func ScanFiles(repo string, files []string) ([]models.ScanResults, error) {
 			continue
 		}
 
-		wg.Add(1)
+		wg.Add(1)         // This tells that we’re starting work on a new file.
 		sem <- struct{}{} // Acquire a slot for concurrency
 
+		// creating a go routine to scan multiple files at the same time. This will run in the background.
 		go func(file string) {
-			defer wg.Done()
+			defer wg.Done()          // Once the file is processed, we tell the WaitGroup that we’re done with it.
 			defer func() { <-sem }() // Release slot when done
 
 			// Fetch file content.
@@ -115,15 +116,15 @@ func ScanFiles(repo string, files []string) ([]models.ScanResults, error) {
 				}
 
 				// Append the processed scan result to the results slice.
-				mu.Lock()
+				mu.Lock() // Locks the results list so no other task modifies it at the same time.
 				results = append(results, parsed)
-				mu.Unlock()
+				mu.Unlock() // Unlocks so other tasks can use results
 			}
 		}(file)
 	}
 
-	wg.Wait()
-	close(errChan)
+	wg.Wait()      // Wait for all files to be processed.
+	close(errChan) // Close the error channel to signal that no more errors will be sent.
 
 	// If any error occurred in any goroutine, return the first one.
 	for err := range errChan {
