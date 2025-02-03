@@ -1,0 +1,22 @@
+# all the compiled binary files
+__debug_bin250641945
+__debug_bin262220210
+__debug_bin927293461
+__debug_bin1304170139
+__debug_bin1312962356
+__debug_bin1648814246
+__debug_bin2234607794
+__debug_bin2318543034
+__debug_bin2735102439
+__debug_bin3339650957
+__debug_bin3838800189
+__debug_bin4264510621
+
+# environment files
+.env
+
+# test coverage report
+coverage.out
+
+# database files
+data.db

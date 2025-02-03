@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  app:
+    build: .  # Build the image from the Dockerfile in the current directory
+    ports:
+      - "8080:8080"  # Map port 8080 of the host to port 8080 of the container
+    volumes:
+      - .:/app  # Mount current directory to /app in the container for live reload
+    environment:
+      - DB_PATH=./data.db  # Environment variable for database path
+    depends_on:
+      - db  # Ensure the db service starts before the app
+
+  db:
+    image: nouchka/sqlite3  # Use a lightweight SQLite image
+    volumes:
+      - db_data:/data  # Persist database data across container restarts
+
+volumes:
+  db_data:  # Named volume for persistent storage
