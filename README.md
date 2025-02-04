@@ -1,15 +1,22 @@
 # GitHub Scanner
 
-## Description
-GitHub Scanner is a Go-based service designed to scan a specified GitHub repository for JSON files and store their contents. It provides two REST APIs: one for scanning the repository and another for querying the stored JSON payloads using key-value filters.
+## Overview
+
+GitHub Scanner is a Go-based service that provides two REST APIs to scan a GitHub repository for JSON files and store their contents, and to query stored JSON payloads using key-value filters. This project is designed to be modular, production-ready, and includes unit tests, Docker setup, and Swagger documentation.
 
 ## Features
+
 - **Scan API**: Fetches and processes JSON files from a specified GitHub repository.
-- **Query API**: Returns stored JSON payloads based on specified filters.
+- **Query API**: Returns JSON payloads matching specified filters.
+- **Concurrency**: Processes multiple files in parallel.
+- **Error Handling**: Retries failed GitHub API calls.
+- **Docker**: Single container setup for the service.
+- **Swagger Documentation**: Provides API documentation and testing interface.
 
 ## API Endpoints
 
-### 1. Scan API
+### Scan API
+
 **Endpoint**: `POST /scan`
 
 **Request Body**:
@@ -22,7 +29,8 @@ GitHub Scanner is a Go-based service designed to scan a specified GitHub reposit
 
 **Description**: Fetches all `.json` files from the specified GitHub path, processes files containing arrays of JSON payloads, and stores each payload with metadata (source file, scan time).
 
-### 2. Query API
+### Query API
+
 **Endpoint**: `POST /query`
 
 **Request Body**:
@@ -34,7 +42,7 @@ GitHub Scanner is a Go-based service designed to scan a specified GitHub reposit
 }
 ```
 
-**Description**: Returns all payloads matching any one filter key (exact matches).
+**Description**: Returns all payloads matching any one filter key (exact matches). Currently focuses on the `severity` filter.
 
 **Example Response**:
 ```json
@@ -75,59 +83,50 @@ GitHub Scanner is a Go-based service designed to scan a specified GitHub reposit
 ]
 ```
 
-## Requirements
+## Technical Requirements
+
 - **Language**: Go
-- **Database**: SQLite
+- **Database**: SQLite (or any preferred database)
 - **Concurrency**: Processes ≥ 3 files in parallel
 - **Error Handling**: Retries failed GitHub API calls (2 attempts)
 - **Docker**: Single container for the service
 
-## Running the Project
+## Setup and Installation
 
-### Prerequisites
-- Docker installed on your machine
-- Go installed on your machine
-
-### Steps
 1. **Clone the repository**:
     ```sh
-    git clone https://github.com/nilayjain12/vulnerability_scans.git
+    git clone https://github.com/yourusername/github-scanner.git
     cd github-scanner
     ```
 
-2. **Build and run the Docker container**:
+2. **Build the Docker image**:
     ```sh
     docker build -t github-scanner .
+    ```
+
+3. **Run the Docker container**:
+    ```sh
     docker run -p 8080:8080 github-scanner
     ```
 
-3. **Run the service locally** (without Docker):
-    ```sh
-    go run main.go
-    ```
+## Running Tests
 
-## Testing the Project
-
-### Unit Tests
-Run the unit tests using the following command:
+To run the unit tests, use the following command:
 ```sh
 go test ./...
 ```
 
-### Manual Testing
-1. **Scan API**:
-    ```sh
-    curl -X POST http://localhost:8080/scan -d '{
-       "repo": "https://github.com/velancio/vulnerability_scans",
-       "files": ["file1.json", "file2.json"]
-    }'
-    ```
+## Swagger Documentation
 
-2. **Query API**:
-    ```sh
-    curl -X POST http://localhost:8080/query -d '{
-       "filters": {
-          "severity": "HIGH"
-       }
-    }'
-    ```
+Swagger documentation is available to provide a detailed interface for the APIs. To access the Swagger UI, navigate to `http://localhost:8080/swagger/index.html` after running the Docker container.
+
+## Deliverables
+
+- **Code**: Modular, production-ready Go code.
+- **Unit Tests**: 60%+ coverage for core logic.
+- **Docker Setup**: Single Docker container with dependencies.
+
+## Evaluation Focus
+
+- **Code Quality**: Readable, maintainable, extensible, modular code with error handling and concurrency patterns.
+- **Documentation**: Clear instructions for running and testing.
