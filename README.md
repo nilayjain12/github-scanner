@@ -83,14 +83,6 @@ GitHub Scanner is a Go-based service that provides two REST APIs to scan a GitHu
 ]
 ```
 
-## Technical Requirements
-
-- **Language**: Go
-- **Database**: SQLite (or any preferred database)
-- **Concurrency**: Processes ≥ 3 files in parallel
-- **Error Handling**: Retries failed GitHub API calls (2 attempts)
-- **Docker**: Single container for the service
-
 ## Setup and Installation
 
 1. **Clone the repository**:
@@ -109,6 +101,10 @@ GitHub Scanner is a Go-based service that provides two REST APIs to scan a GitHu
     docker run -p 8080:8080 github-scanner
     ```
 
+## Swagger Documentation
+
+Swagger documentation is available to provide a detailed interface for the APIs. To access the Swagger UI, navigate to `http://localhost:8080/swagger/index.html` after running the Docker container.
+
 ## Running Tests
 
 To run the unit tests, use the following command:
@@ -116,17 +112,8 @@ To run the unit tests, use the following command:
 go test ./...
 ```
 
-## Swagger Documentation
-
-Swagger documentation is available to provide a detailed interface for the APIs. To access the Swagger UI, navigate to `http://localhost:8080/swagger/index.html` after running the Docker container.
-
 ## Deliverables
 
 - **Code**: Modular, production-ready Go code.
 - **Unit Tests**: 60%+ coverage for core logic.
 - **Docker Setup**: Single Docker container with dependencies.
-
-## Evaluation Focus
-
-- **Code Quality**: Readable, maintainable, extensible, modular code with error handling and concurrency patterns.
-- **Documentation**: Clear instructions for running and testing.
