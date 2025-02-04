@@ -16,10 +16,7 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod tidy
 
-# Copy the .env file
-COPY .env .
-
-# Copy the entire project
+# Copy the entire project, including SQL schema files
 COPY . .
 
 # Build the application
@@ -32,10 +29,12 @@ FROM alpine:latest
 RUN apk add --no-cache ca-certificates sqlite
 
 # Set the working directory
-WORKDIR /root/
+WORKDIR /app  # Make sure the working directory is correct
 
-# Copy the compiled binary from the build stage
+# Copy the compiled binary and necessary files from the build stage
 COPY --from=builder /app/github-scanner .
+COPY --from=builder /app/.env .env  
+COPY --from=builder /app/internal/database/schema internal/database/schema
 
 # Expose the application port
 EXPOSE 8080

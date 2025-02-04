@@ -10,7 +10,7 @@ services:
     environment:
       - DB_PATH=./data.db
     env_file:
-      - .env  # Mount the .env file
+      - .env  # Fix the incorrect .env mounting
     depends_on:
       - db
 

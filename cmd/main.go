@@ -18,21 +18,6 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
-// @title GitHub Scanner API
-// @version 1.0
-// @description API for scanning GitHub repositories and querying vulnerabilities.
-// @termsOfService http://swagger.io/terms/
-
-// @contact.name API Support
-// @contact.url http://www.example.com/support
-// @contact.email support@example.com
-
-// @license.name MIT
-// @license.url https://opensource.org/licenses/MIT
-
-// @host localhost:8080
-// @BasePath /
-
 // @securityDefinitions.apikey ApiKeyAuth
 // @in header
 // @name X-API-KEY
