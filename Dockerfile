@@ -1,5 +1,5 @@
 # Use an official Golang image as a build environment
-FROM golang:1.23-alpine AS builder
+FROM golang:1.23.5-alpine AS builder
 
 # Enable CGO and install required dependencies
 ENV CGO_ENABLED=1 \

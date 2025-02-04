@@ -105,6 +105,8 @@ GitHub Scanner is a Go-based service that provides two REST APIs to scan a GitHu
 
 Swagger documentation is available to provide a detailed interface for the APIs. To access the Swagger UI, navigate to `http://localhost:8080/swagger/index.html` after running the Docker container.
 
+#### Make sure to authorize before using /scan and /query endpoints by clicking ```Authorize``` button and enter ```secret``` as value.
+
 ## Running Tests
 
 To run the unit tests, use the following command:
