@@ -2,7 +2,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -22,47 +21,49 @@ import (
 // @in header
 // @name X-API-KEY
 func main() {
-	// Load configuration and initialize the DB.
+	// Load configuration and initialize the database.
 	config.LoadConfig()
 	database.InitDB()
 
 	// Create a new router.
-	r := mux.NewRouter()
+	router := mux.NewRouter()
 
-	// Attach our custom middleware:
-	r.Use(rateLimitMiddleware)
-	r.Use(authMiddleware)
-	r.Use(recoverMiddleware)
+	// Attach custom middleware.
+	router.Use(rateLimitMiddleware)
+	router.Use(authMiddleware)
+	router.Use(recoverMiddleware)
 
 	// Define endpoints.
-	r.HandleFunc("/scan", api.ScanHandler).Methods("POST")
-	r.HandleFunc("/query", api.QueryHandler).Methods("POST")
+	router.HandleFunc("/scan", api.ScanHandler).Methods("POST")
+	router.HandleFunc("/query", api.QueryHandler).Methods("POST")
 
 	// Health endpoint (used by Docker healthcheck)
-	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
+		_, _ = w.Write([]byte("OK"))
 	}).Methods("GET")
 
 	// Swagger endpoint.
-	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
+	router.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
-	// Optionally set a custom NotFound handler for 404 responses.
-	r.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	// Custom 404 handler.
+	router.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Not Found", http.StatusNotFound)
 	})
 
-	// Use a custom HTTP server with timeouts.
+	// Create a custom HTTP server with timeouts.
 	server := &http.Server{
-		Handler:      r,
+		Handler:      router,
 		Addr:         ":8080",
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
 
-	fmt.Println("Server running on port 8080")
-	log.Fatal(server.ListenAndServe())
+	log.Println("INFO: Server is starting on port 8080")
+	if err := server.ListenAndServe(); err != nil {
+		log.Fatalf("ERROR: Server terminated unexpectedly: %v", err)
+	}
 }
 
 // authMiddleware enforces that requests include a valid API key.
@@ -76,11 +77,13 @@ func authMiddleware(next http.Handler) http.Handler {
 
 		apiKey := r.Header.Get("X-API-KEY")
 		if apiKey == "" {
+			log.Println("WARN: Request missing API key")
 			http.Error(w, "Unauthorized: API key required", http.StatusUnauthorized)
 			return
 		}
 		// In this example, the valid API key is "secret".
 		if apiKey != "secret" {
+			log.Printf("WARN: Request with invalid API key: %s", apiKey)
 			http.Error(w, "Forbidden: Invalid API key", http.StatusForbidden)
 			return
 		}
@@ -90,7 +93,7 @@ func authMiddleware(next http.Handler) http.Handler {
 
 // rateLimitMiddleware limits the number of concurrent requests.
 func rateLimitMiddleware(next http.Handler) http.Handler {
-	// For this example, allow up to 5 concurrent requests.
+	// Allow up to 5 concurrent requests.
 	sem := make(chan struct{}, 5)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		select {
@@ -98,6 +101,7 @@ func rateLimitMiddleware(next http.Handler) http.Handler {
 			defer func() { <-sem }()
 			next.ServeHTTP(w, r)
 		default:
+			log.Println("WARN: Too many concurrent requests")
 			http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
 		}
 	})
@@ -108,6 +112,7 @@ func recoverMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if rec := recover(); rec != nil {
+				log.Printf("ERROR: Panic recovered: %v", rec)
 				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			}
 		}()

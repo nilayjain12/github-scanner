@@ -1,3 +1,4 @@
+// client.go
 package github
 
 import (
@@ -26,40 +27,35 @@ func FetchFile(source, file string) ([]byte, error) {
 		for attempt = 1; attempt <= maxAttempts; attempt++ {
 			resp, err = http.Get(fileRawURL)
 			if err != nil {
-				// Log and retry if not the last attempt.
 				if attempt < maxAttempts {
 					time.Sleep(1 * time.Second)
 					continue
 				}
-				return nil, fmt.Errorf("failed to fetch file %s (attempt %d): %v", file, attempt, err)
+				return nil, fmt.Errorf("ERROR: failed to fetch file %s (attempt %d): %v", file, attempt, err)
 			}
 
 			if resp.StatusCode != http.StatusOK {
-				// Close the response and retry if not the last attempt.
 				resp.Body.Close()
 				if attempt < maxAttempts {
 					time.Sleep(1 * time.Second)
 					continue
 				}
-				return nil, fmt.Errorf("failed to fetch file %s (attempt %d): received status %d", file, attempt, resp.StatusCode)
+				return nil, fmt.Errorf("ERROR: failed to fetch file %s (attempt %d): received status %d", file, attempt, resp.StatusCode)
 			}
-
-			// Successful HTTP call.
 			break
 		}
 
 		defer resp.Body.Close()
-
 		content, err = ioutil.ReadAll(resp.Body)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read file %s: %v", file, err)
+			return nil, fmt.Errorf("ERROR: failed to read file %s: %v", file, err)
 		}
 	} else {
 		// For local files.
 		filePath := filepath.Join(source, file)
 		content, err = ioutil.ReadFile(filePath)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read file %s: %v", file, err)
+			return nil, fmt.Errorf("ERROR: failed to read file %s: %v", file, err)
 		}
 	}
 

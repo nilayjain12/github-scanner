@@ -1,9 +1,11 @@
+// db.go
 package database
 
 import (
 	"database/sql"
 	"log"
 	"os"
+
 	"github-scanner/internal/models"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -11,25 +13,24 @@ import (
 
 var DB *sql.DB
 
-// InitDB opens the database and executes the schema.
+// InitDB opens the database connection and executes the schema.
 func InitDB() {
 	var err error
 	DB, err = sql.Open("sqlite3", os.Getenv("DB_PATH"))
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("ERROR: Unable to open database: %v", err)
 	}
 
-	// Read the schema SQL from the file.
-	sqlSchema, err := os.ReadFile("internal/database/schema/vuln_scan_schema.sql")
+	schemaPath := "internal/database/schema/vuln_scan_schema.sql"
+	sqlSchema, err := os.ReadFile(schemaPath)
 	if err != nil {
-		log.Fatal("Error reading schema file: ", err)
+		log.Fatalf("ERROR: Unable to read schema file (%s): %v", schemaPath, err)
 	}
 
-	// Execute the schema SQL to create/update the tables.
-	_, err = DB.Exec(string(sqlSchema))
-	if err != nil {
-		log.Fatal("Error executing schema: ", err)
+	if _, err = DB.Exec(string(sqlSchema)); err != nil {
+		log.Fatalf("ERROR: Failed to execute schema: %v", err)
 	}
+	log.Println("INFO: Database initialized successfully")
 }
 
 // StoreScanResults inserts a record into the scan_results table.
@@ -38,6 +39,9 @@ func StoreScanResults(scanID, timestamp, scanStatus, resourceType, resourceName 
 		INSERT OR REPLACE INTO scan_results (scan_id, timestamp, scan_status, resource_type, resource_name)
 		VALUES (?, ?, ?, ?, ?)
 	`, scanID, timestamp, scanStatus, resourceType, resourceName)
+	if err != nil {
+		log.Printf("ERROR: Failed to store scan result for scanID %s: %v", scanID, err)
+	}
 	return err
 }
 
@@ -47,6 +51,9 @@ func StoreVulnerability(scanID, vulnID, severity string, cvss float64, status, p
 		INSERT OR REPLACE INTO vulnerabilities (id, scan_id, severity, cvss, status, package_name, current_version, fixed_version, description, published_date, link)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`, vulnID, scanID, severity, cvss, status, packageName, currentVersion, fixedVersion, description, publishedDate, link)
+	if err != nil {
+		log.Printf("ERROR: Failed to store vulnerability %s for scanID %s: %v", vulnID, scanID, err)
+	}
 	return err
 }
 
@@ -56,6 +63,9 @@ func StoreRiskFactor(scanID, vulnID, riskFactor string) error {
 		INSERT OR REPLACE INTO risk_factors (vulnerability_id, scan_id, risk_factor)
 		VALUES (?, ?, ?)
 	`, vulnID, scanID, riskFactor)
+	if err != nil {
+		log.Printf("ERROR: Failed to store risk factor for vulnerability %s in scanID %s: %v", vulnID, scanID, err)
+	}
 	return err
 }
 
@@ -65,6 +75,9 @@ func StoreScanSummary(scanID string, totalVulns, critical, high, medium, low, fi
 		INSERT OR REPLACE INTO scan_summary (scan_id, total_vulnerabilities, critical_count, high_count, medium_count, low_count, fixable_count, compliant)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 	`, scanID, totalVulns, critical, high, medium, low, fixable, compliant)
+	if err != nil {
+		log.Printf("ERROR: Failed to store scan summary for scanID %s: %v", scanID, err)
+	}
 	return err
 }
 
@@ -74,6 +87,9 @@ func StoreScanMetadata(scanID, scannerVersion, policiesVersion string) error {
 		INSERT OR REPLACE INTO scan_metadata (scan_id, scanner_version, policies_version)
 		VALUES (?, ?, ?)
 	`, scanID, scannerVersion, policiesVersion)
+	if err != nil {
+		log.Printf("ERROR: Failed to store scan metadata for scanID %s: %v", scanID, err)
+	}
 	return err
 }
 
@@ -83,6 +99,9 @@ func StoreScanningRule(scanID, rule string) error {
 		INSERT OR REPLACE INTO scanning_rules (scan_id, rule)
 		VALUES (?, ?)
 	`, scanID, rule)
+	if err != nil {
+		log.Printf("ERROR: Failed to store scanning rule for scanID %s: %v", scanID, err)
+	}
 	return err
 }
 
@@ -92,17 +111,18 @@ func StoreExcludedPath(scanID, path string) error {
 		INSERT OR REPLACE INTO excluded_paths (scan_id, path)
 		VALUES (?, ?)
 	`, scanID, path)
+	if err != nil {
+		log.Printf("ERROR: Failed to store excluded path for scanID %s: %v", scanID, err)
+	}
 	return err
 }
 
-// QueryPayloads returns rows from scan_results that have at least one vulnerability
-// matching the severity filter. If no severity filter is provided, all scan_results are returned.
+// QueryPayloads returns rows from scan_results with at least one vulnerability matching the severity filter.
 func QueryPayloads(filters map[string]interface{}) (*sql.Rows, error) {
 	var query string
 	var args []interface{}
 
 	if severity, exists := filters["severity"].(string); exists && severity != "" {
-		// Join scan_results with vulnerabilities and filter by severity.
 		query = `
 			SELECT DISTINCT sr.scan_id, sr.timestamp, sr.scan_status, sr.resource_type, sr.resource_name
 			FROM scan_results sr
@@ -110,13 +130,12 @@ func QueryPayloads(filters map[string]interface{}) (*sql.Rows, error) {
 			WHERE v.severity = ?`
 		args = append(args, severity)
 	} else {
-		// If no severity is provided, return all scan_results.
 		query = `
 			SELECT scan_id, timestamp, scan_status, resource_type, resource_name 
 			FROM scan_results`
 	}
 
-	log.Println("Running query:", query)
+	log.Printf("INFO: Executing query: %s", query)
 	return DB.Query(query, args...)
 }
 
@@ -127,6 +146,7 @@ func GetVulnerabilities(scanID string) ([]models.Vulnerability, error) {
 		FROM vulnerabilities
 		WHERE scan_id = ?`, scanID)
 	if err != nil {
+		log.Printf("ERROR: Querying vulnerabilities for scanID %s: %v", scanID, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -135,9 +155,10 @@ func GetVulnerabilities(scanID string) ([]models.Vulnerability, error) {
 	for rows.Next() {
 		var v models.Vulnerability
 		if err := rows.Scan(&v.ID, &v.Severity, &v.CVSS, &v.Status, &v.PackageName, &v.CurrentVersion, &v.FixedVersion, &v.Description, &v.PublishedDate, &v.Link); err != nil {
+			log.Printf("ERROR: Scanning vulnerability for scanID %s: %v", scanID, err)
 			continue
 		}
-		// Get risk factors for this vulnerability.
+		// Retrieve risk factors.
 		riskRows, err := DB.Query(`
 			SELECT risk_factor 
 			FROM risk_factors 
@@ -152,6 +173,8 @@ func GetVulnerabilities(scanID string) ([]models.Vulnerability, error) {
 			}
 			riskRows.Close()
 			v.RiskFactors = riskFactors
+		} else {
+			log.Printf("WARN: Unable to retrieve risk factors for vulnerability %s in scanID %s", v.ID, scanID)
 		}
 		vulns = append(vulns, v)
 	}
@@ -166,14 +189,13 @@ func GetScanSummary(scanID string) (*models.ScanSummary, error) {
 		WHERE scan_id = ?`, scanID)
 
 	var summary models.ScanSummary
-	// Use local variables for the severity counts.
 	var critical, high, medium, low int
 
 	if err := row.Scan(&summary.TotalVulnerabilities, &critical, &high, &medium, &low, &summary.FixableCount, &summary.Compliant); err != nil {
+		log.Printf("ERROR: Retrieving scan summary for scanID %s: %v", scanID, err)
 		return nil, err
 	}
 
-	// Initialize and assign the severity counts.
 	summary.SeverityCounts = map[string]int{
 		"CRITICAL": critical,
 		"HIGH":     high,
@@ -192,6 +214,7 @@ func GetScanMetadata(scanID string) (*models.ScanMetadata, error) {
 		WHERE scan_id = ?`, scanID)
 	var metadata models.ScanMetadata
 	if err := row.Scan(&metadata.ScannerVersion, &metadata.PoliciesVersion); err != nil {
+		log.Printf("ERROR: Retrieving scan metadata for scanID %s: %v", scanID, err)
 		return nil, err
 	}
 
@@ -207,6 +230,8 @@ func GetScanMetadata(scanID string) (*models.ScanMetadata, error) {
 		}
 		rulesRows.Close()
 		metadata.ScanningRules = rules
+	} else {
+		log.Printf("WARN: Retrieving scanning rules for scanID %s: %v", scanID, err)
 	}
 
 	// Retrieve excluded paths.
@@ -221,11 +246,13 @@ func GetScanMetadata(scanID string) (*models.ScanMetadata, error) {
 		}
 		pathsRows.Close()
 		metadata.ExcludedPaths = paths
+	} else {
+		log.Printf("WARN: Retrieving excluded paths for scanID %s: %v", scanID, err)
 	}
 	return &metadata, nil
 }
 
-// QueryVulnerabilities returns rows from the vulnerabilities table that match the severity filter.
+// QueryVulnerabilities returns rows from the vulnerabilities table matching the severity filter.
 func QueryVulnerabilities(filters map[string]interface{}) (*sql.Rows, error) {
 	var query string
 	var args []interface{}
@@ -241,17 +268,18 @@ func QueryVulnerabilities(filters map[string]interface{}) (*sql.Rows, error) {
 			SELECT id, scan_id, severity, cvss, status, package_name, current_version, fixed_version, description, published_date, link 
 			FROM vulnerabilities`
 	}
-	log.Println("Running query:", query)
+	log.Printf("INFO: Executing vulnerabilities query: %s", query)
 	return DB.Query(query, args...)
 }
 
-// GetRiskFactors retrieves all risk factors for the given vulnerability (using scan_id and vulnerability_id).
+// GetRiskFactors retrieves all risk factors for the given vulnerability.
 func GetRiskFactors(scanID, vulnID string) ([]string, error) {
 	rows, err := DB.Query(`
 		SELECT risk_factor 
 		FROM risk_factors 
 		WHERE scan_id = ? AND vulnerability_id = ?`, scanID, vulnID)
 	if err != nil {
+		log.Printf("ERROR: Querying risk factors for vulnerability %s in scanID %s: %v", vulnID, scanID, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -260,6 +288,7 @@ func GetRiskFactors(scanID, vulnID string) ([]string, error) {
 	for rows.Next() {
 		var rf string
 		if err := rows.Scan(&rf); err != nil {
+			log.Printf("WARN: Scanning risk factor for vulnerability %s in scanID %s: %v", vulnID, scanID, err)
 			continue
 		}
 		riskFactors = append(riskFactors, rf)

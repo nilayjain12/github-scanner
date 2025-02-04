@@ -1,3 +1,4 @@
+// scan_handler.go
 package api
 
 import (
@@ -9,37 +10,54 @@ import (
 	"github-scanner/internal/services"
 )
 
+// ScanHandler processes /scan POST requests.
 func ScanHandler(w http.ResponseWriter, r *http.Request) {
-	// Ensure the method is POST.
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		logErrorAndRespond(w, "Method Not Allowed on /scan endpoint", http.StatusMethodNotAllowed)
 		return
 	}
 
 	var payload models.ScanRequestPayload
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		log.Printf("Error decoding payload: %s", err.Error())
-		http.Error(w, "Bad Request: Invalid request payload", http.StatusBadRequest)
+		logErrorAndRespond(w, "Invalid scan request payload", http.StatusBadRequest)
 		return
 	}
 
+	logInfo("Starting scan for repository: %s", payload.Repo)
 	results, err := services.ScanFiles(payload.Repo, payload.Files)
 	if err != nil {
+		logError("Error scanning files: %v", err)
 		http.Error(w, "Internal Server Error: Error scanning files", http.StatusInternalServerError)
 		return
 	}
 
-	// If no scans were processed, return 204 No Content.
 	if len(results) == 0 {
+		logInfo("Scan completed with no results")
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	// Return 201 Created since resources were stored.
 	w.WriteHeader(http.StatusCreated)
 	if err := json.NewEncoder(w).Encode(results); err != nil {
-		log.Printf("Failed to encode scan results: %s", err.Error())
-		http.Error(w, "Internal Server Error: Failed to encode response", http.StatusInternalServerError)
+		logErrorAndRespond(w, "Failed to encode scan response", http.StatusInternalServerError)
+		return
 	}
+	logInfo("Scan completed successfully for repository: %s", payload.Repo)
+}
+
+// logInfo logs informational messages.
+func logInfo(format string, v ...interface{}) {
+	log.Printf("INFO: "+format, v...)
+}
+
+// logError logs error messages.
+func logError(format string, v ...interface{}) {
+	log.Printf("ERROR: "+format, v...)
+}
+
+// logErrorAndRespond logs an error and sends an HTTP error response.
+func logErrorAndRespond(w http.ResponseWriter, msg string, code int) {
+	log.Printf("ERROR: %s", msg)
+	http.Error(w, msg, code)
 }
